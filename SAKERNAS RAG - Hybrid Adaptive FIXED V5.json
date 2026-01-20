@@ -1,0 +1,1083 @@
+{
+  "name": "SAKERNAS RAG - Hybrid Adaptive FIXED",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "filter-group",
+              "leftValue": "={{ $json.payload.from }}",
+              "rightValue": "@g.us",
+              "operator": {
+                "type": "string",
+                "operation": "notEndsWith"
+              }
+            },
+            {
+              "id": "filter-broadcast",
+              "leftValue": "={{ $json.payload.from }}",
+              "rightValue": "@broadcast",
+              "operator": {
+                "type": "string",
+                "operation": "notEndsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2512,
+        -1216
+      ],
+      "id": "c1b1698b-1096-497c-b097-2510004b505b",
+      "name": "Filter Groups"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini-2024-07-18",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini-2024-07-18"
+        },
+        "builtInTools": {},
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1768,
+        -748
+      ],
+      "id": "e11ef0b9-8a44-441e-a9a9-08cb99cfd2f0",
+      "name": "LLM Intent Classifier",
+      "credentials": {
+        "openAiApi": {
+          "id": "UIf8te6pFLHvhBzM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('WAHA Trigger1').item.json.payload.body }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Role: Intent Classifier dan Query Analyzer untuk sistem RAG SAKERNAS.\n\nTugas:\n1. Klasifikasi intent dan complexity query\n2. Tentukan strategi retrieval (single-path atau multi-path)\n3. Generate optimized query/queries yang ringkas, compact, cepat, dan informatif.\n4. SIMPAN original query untuk reference\n\nIntent Categories:\n- definitional: Pertanyaan \"apa itu\", \"pengertian\", \"definisi\"\n- code_lookup: Pertanyaan tentang KBLI, KBJI, kode\n- procedural: Pertanyaan \"bagaimana\", \"cara\", \"langkah\"\n- classification: Pertanyaan \"apakah X termasuk Y\", \"tergolong\"\n- comparison: Pertanyaan \"bedanya apa\", \"perbedaan\"\n- multi_hop: Pertanyaan yang butuh reasoning bertahap\n\nComplexity Assessment:\n- SIMPLE: definitional, code_lookup, procedural → Single-path\n- COMPLEX: classification, comparison, multi_hop → Multi-path\n\nTerm Mapping:\n- \"ojek/ojol\" → \"angkutan darat penumpang roda dua KBLI 49.32\"\n- \"pengangguran\" → \"mencari pekerjaan angkatan kerja tidak bekerja\"\n- \"ibu rumah tangga\" → \"bukan angkatan kerja mengurus rumah tangga\"\n- \"anak kos\" → \"penduduk tempat tinggal 6 bulan domisili\"\n- \"petani\" → \"pertanian tanaman pangan KBLI 01\"\n\nOutput Format (JSON):\n\nFOR SIMPLE QUERIES:\n{\n  \"intent\": \"definitional|code_lookup|procedural\",\n  \"complexity\": \"simple\",\n  \"strategy\": \"single_path\",\n  \"optimized_query\": \"expanded query dengan istilah teknis dan sinonim\",\n  \"keywords\": [\"keyword1\", \"keyword2\", \"keyword3\"],\n  \"top_k\": 15,\n  \"original_query\": \"{{ COPY EXACT USER QUERY HERE }}\"\n}\n\nFOR COMPLEX QUERIES:\n{\n  \"intent\": \"classification|comparison|multi_hop\",\n  \"complexity\": \"complex\",\n  \"strategy\": \"multi_path\",\n  \"subqueries\": [\n    {\n      \"path\": 1,\n      \"focus\": \"precise\",\n      \"query\": \"query presisi dengan istilah teknis\",\n      \"top_k\": 5,\n      \"weight\": 1.0\n    },\n    {\n      \"path\": 2,\n      \"focus\": \"expanded\",\n      \"query\": \"query dengan sinonim dan variasi\",\n      \"top_k\": 5,\n      \"weight\": 0.8\n    },\n    {\n      \"path\": 3,\n      \"focus\": \"contextual\",\n      \"query\": \"query konteks umum\",\n      \"top_k\": 3,\n      \"weight\": 0.6\n    }\n  ],\n  \"keywords\": [\"keyword1\", \"keyword2\"],\n  \"original_query\": \"{{ COPY EXACT USER QUERY HERE }}\"\n}\n\nPENTING: \n1. Return HANYA valid JSON, tanpa markdown wrapper\n2. Field \"original_query\" WAJIB diisi dengan query asli user (verbatim)\n3. Jangan ubah atau paraphrase original_query"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1840,
+        -972
+      ],
+      "id": "bb6178f6-512d-4932-a741-8db6d820ae74",
+      "name": "Intent Classifier"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "check-strategy",
+              "leftValue": "={{ $json.strategy }}",
+              "rightValue": "single_path",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1264,
+        -876
+      ],
+      "id": "545f0a98-06ab-44d5-a259-d5567910faa3",
+      "name": "Route Splitter"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "gpt-3.5-turbo"
+        },
+        "builtInTools": {},
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1040,
+        -1044
+      ],
+      "id": "1a89855a-3124-45ad-9b84-2b26fd0cc441",
+      "name": "LLM Single Retriever",
+      "credentials": {
+        "openAiApi": {
+          "id": "UIf8te6pFLHvhBzM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Intent Classifier').item.json.output }}",
+        "options": {
+          "systemMessage": "Role: Retrieval agent untuk SAKERNAS knowledge base.\n\nCRITICAL RULES:\n1. Call tool \"Supabase Vector Store\" EXACTLY ONCE\n2. Use the optimized_query from input\n3. Return tool results IMMEDIATELY \n4. DO NOT parse, format, or modify the tool output\n5. DO NOT add explanations or summaries\n6. Make the process fast!\n\nEXECUTION FLOW:\nStep 1: Extract optimized_query from input\nStep 2: Call \"Supabase Vector Store\" tool with that query\nStep 3: Return the raw tool output AS-IS\n\nIMPORTANT:\n- NO text before tool results\n- NO text after tool results\n- NO JSON parsing\n- NO formatting\n- Just return what the tool gives you\n\nExample:\nInput: {\"optimized_query\": \"definisi SAKERNAS\"}\nAction: Call tool with \"definisi SAKERNAS\"\nOutput: [Return tool results exactly as received]\n\nDO NOT DO THIS:\n❌ \"Here are the results from the knowledge base...\"\n❌ Parsing JSON and reformatting\n❌ Summarizing the results\n❌ Adding metadata\n\nDO THIS:\n✅ Return tool output directly\n✅ No additional processing\n✅ No explanations\n",
+          "maxIterations": 2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1008,
+        -1268
+      ],
+      "id": "a2d5db09-864c-4188-a219-a3eb9e26f522",
+      "name": "Single Path Retriever"
+    },
+    {
+      "parameters": {
+        "options": {
+          "timeout": -1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -832,
+        -836
+      ],
+      "id": "7f057339-33e8-4aa2-852b-2a4fda9c63ab",
+      "name": "Embeddings Single",
+      "credentials": {
+        "openAiApi": {
+          "id": "UIf8te6pFLHvhBzM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search SAKERNAS knowledge base using semantic similarity. Input: query (string in Bahasa Indonesia). Returns: Relevant document chunks with content and metadata.",
+        "tableName": {
+          "__rl": true,
+          "value": "rag_vectors",
+          "mode": "list",
+          "cachedResultName": "rag_vectors"
+        },
+        "topK": 2,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        -912,
+        -1044
+      ],
+      "id": "bec44cec-4e5b-4fa9-a984-d333a31b20dc",
+      "name": "Supabase Vector Store Single",
+      "credentials": {
+        "supabaseApi": {
+          "id": "IRgdA1grhUB2EQRf",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NORMALIZE DATA SINGLE - ULTRA FIXED\n// Handles ALL possible output formats including triple-nested JSON\n// ============================================\n\nconst items = $input.all();\n\nconsole.log('=== NORMALIZE DATA SINGLE (ULTRA FIXED) ===');\nconsole.log('📥 Input items:', items.length);\n\nif (items.length === 0) {\n  console.log('❌ No input items!');\n  return [];\n}\n\n// Log first item structure\nconsole.log('🔍 First item keys:', Object.keys(items[0].json));\nconsole.log('🔍 Output type:', typeof items[0].json.output);\nconsole.log('🔍 Output sample:', JSON.stringify(items[0].json.output).substring(0, 200));\n\nconst normalized = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const data = items[i].json;\n  \n  console.log(`\\n--- Processing item ${i + 1} ---`);\n  \n  let documents = [];\n  \n  // CASE 1: Agent output with tool_results\n  if (data.tool_results && Array.isArray(data.tool_results)) {\n    console.log('📦 Format: Agent tool_results');\n    for (const toolResult of data.tool_results) {\n      if (toolResult.response && Array.isArray(toolResult.response)) {\n        for (const resp of toolResult.response) {\n          if (resp.type === 'text' && resp.text) {\n            try {\n              const parsed = JSON.parse(resp.text);\n              documents.push(parsed);\n            } catch (e) {\n              documents.push({ content: resp.text });\n            }\n          }\n        }\n      }\n    }\n  }\n  // CASE 2: Direct output field\n  else if (data.output) {\n    let parsedOutput = data.output;\n    \n    // Step 1: Parse if string\n    if (typeof parsedOutput === 'string') {\n      console.log('📦 Step 1: Parsing stringified output');\n      try {\n        parsedOutput = JSON.parse(parsedOutput);\n        console.log('✅ Parsed to:', typeof parsedOutput);\n      } catch (e) {\n        console.log('⚠️ Not JSON, treating as plain text');\n        documents.push({ content: parsedOutput });\n        parsedOutput = null;\n      }\n    }\n    \n    // Step 2: Handle array of {type, text} objects\n    if (Array.isArray(parsedOutput)) {\n      console.log('📦 Step 2: Processing array with', parsedOutput.length, 'items');\n      \n      for (const item of parsedOutput) {\n        // Check if it's {type: \"text\", text: \"...\"}\n        if (item.type === 'text' && item.text) {\n          console.log('📦 Found type:text object, parsing inner text');\n          try {\n            const innerParsed = JSON.parse(item.text);\n            documents.push(innerParsed);\n            console.log('✅ Parsed inner JSON successfully');\n          } catch (e) {\n            console.log('⚠️ Inner text not JSON, using as-is');\n            documents.push({ content: item.text });\n          }\n        }\n        // Direct document object\n        else if (item.pageContent || item.content) {\n          console.log('📦 Found direct document object');\n          documents.push(item);\n        }\n        // Has response array (old format)\n        else if (item.response && Array.isArray(item.response)) {\n          console.log('📦 Found response array');\n          for (const resp of item.response) {\n            if (resp.type === 'text' && resp.text) {\n              try {\n                const doc = JSON.parse(resp.text);\n                documents.push(doc);\n              } catch (e) {\n                documents.push({ content: resp.text });\n              }\n            }\n          }\n        }\n      }\n    }\n    // Step 3: Handle direct object\n    else if (typeof parsedOutput === 'object' && parsedOutput !== null) {\n      console.log('📦 Step 3: Processing direct object');\n      \n      // Check if it's {type: \"text\", text: \"...\"}\n      if (parsedOutput.type === 'text' && parsedOutput.text) {\n        console.log('📦 Found type:text object, parsing inner text');\n        try {\n          const innerParsed = JSON.parse(parsedOutput.text);\n          documents.push(innerParsed);\n        } catch (e) {\n          documents.push({ content: parsedOutput.text });\n        }\n      }\n      // Direct document\n      else if (parsedOutput.pageContent || parsedOutput.content) {\n        console.log('📦 Found direct document');\n        documents.push(parsedOutput);\n      }\n      // Has response array\n      else if (parsedOutput.response && Array.isArray(parsedOutput.response)) {\n        console.log('📦 Found response array in object');\n        for (const resp of parsedOutput.response) {\n          if (resp.type === 'text' && resp.text) {\n            try {\n              const doc = JSON.parse(resp.text);\n              documents.push(doc);\n            } catch (e) {\n              documents.push({ content: resp.text });\n            }\n          }\n        }\n      }\n    }\n  }\n  // CASE 3: Direct content/pageContent\n  else if (data.content || data.pageContent) {\n    console.log('📦 Format: Direct content/pageContent');\n    documents.push(data);\n  }\n  \n  console.log(`📊 Extracted ${documents.length} documents from item ${i + 1}`);\n  \n  // Extract content from each document\n  for (const doc of documents) {\n    const content = doc.content || doc.pageContent || \"\";\n    \n    if (!content || content.length < 10) {\n      console.log('⚠️ Skipping empty/short content');\n      continue;\n    }\n    \n    const metadata = doc.metadata || {};\n    const similarity = doc.similarity || 0.7;\n    \n    normalized.push({\n      json: {\n        content: content,\n        metadata: metadata,\n        similarity: similarity\n      }\n    });\n    \n    console.log(`✅ Extracted: ${content.substring(0, 50)}... (${content.length} chars)`);\n  }\n}\n\nconsole.log(`\\n=== NORMALIZE COMPLETE ===`);\nconsole.log(`📤 Output items: ${normalized.length}`);\n\nif (normalized.length === 0) {\n  console.log('❌ WARNING: No documents extracted!');\n  console.log('💡 Debug: Check the output structure above');\n  console.log('💡 First item output:', JSON.stringify(items[0]?.json?.output).substring(0, 500));\n}\n\nreturn normalized;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        -964
+      ],
+      "id": "c5ba78c0-dcb8-4fcc-a2d7-ee0f8679024a",
+      "name": "Normalize Data Single",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 2: HYBRID RERANKER\n// Copy code di bawah ini ke node \"Hybrid Reranker\"\n// ============================================\n\nconst chunks = $input.all();\n\nconsole.log('=== NODE 2: HYBRID RERANKER ===');\nconsole.log('📥 Input chunks:', chunks.length);\n\n// Get current query from Intent Classifier\nlet currentQuery = \"Pertanyaan tidak tersedia\";\nlet keywords = [];\nlet intent = \"general\";\n\ntry {\n  const analyzerRaw = $('Intent Classifier').first().json;\n  \n  // Parse stringified JSON from output field\n  let analyzer = {};\n  if (analyzerRaw.output && typeof analyzerRaw.output === 'string') {\n    try {\n      analyzer = JSON.parse(analyzerRaw.output);\n      console.log('✅ Parsed Intent Classifier output');\n    } catch (e) {\n      console.log('⚠️ Failed to parse Intent Classifier output');\n      analyzer = analyzerRaw;\n    }\n  } else {\n    analyzer = analyzerRaw;\n  }\n  \n  currentQuery = analyzer.original_query || analyzer.optimized_query || currentQuery;\n  keywords = analyzer.keywords || [];\n  intent = analyzer.intent || \"general\";\n  console.log('🎯 Intent:', intent);\n  console.log('🏷️ Keywords:', keywords);\n} catch (e) {\n  console.log('⚠️ Could not get analyzer data:', e.message);\n}\n\nconsole.log('❓ Current query:', currentQuery);\n\nif (chunks.length === 0) {\n  console.log('❌ No chunks to rerank!');\n  return [{\n    json: {\n      chunks: [],\n      total_chunks: 0,\n      strategy: 'single_path',\n      current_query: currentQuery\n    }\n  }];\n}\n\n// Rerank chunks\nconst rerankedChunks = chunks.map((item, idx) => {\n  const data = item.json;\n  const content = data.content || \"\";\n  const metadata = data.metadata || {};\n  const semanticScore = data.similarity || 0.7;\n  \n  console.log(`📄 Chunk ${idx + 1}: ${content.length} chars, score: ${semanticScore}`);\n  \n  // Keyword matching\n  const contentLower = content.toLowerCase();\n  const keywordMatches = keywords.filter(kw => \n    contentLower.includes(kw.toLowerCase())\n  );\n  const keywordScore = keywords.length > 0 \n    ? keywordMatches.length / keywords.length \n    : 0;\n  \n  // Metadata boost\n  let metadataBoost = 0;\n  const docType = metadata.chunk_type || '';\n  \n  if (intent === 'definitional' && docType === 'konsep') {\n    metadataBoost = 0.1;\n  } else if (intent === 'code_lookup' && docType === 'kode') {\n    metadataBoost = 0.15;\n  } else if (intent === 'procedural' && docType === 'pedoman') {\n    metadataBoost = 0.1;\n  }\n  \n  // Position penalty\n  const pageStart = metadata.page_start || 999;\n  const positionPenalty = Math.min(pageStart / 100, 0.05);\n  \n  // Hybrid score\n  const hybridScore = (\n    (semanticScore * 0.70) +\n    (keywordScore * 0.30) +\n    metadataBoost -\n    positionPenalty\n  );\n  \n  return {\n    content: content,\n    metadata: metadata,\n    similarity: semanticScore,\n    keyword_score: keywordScore,\n    metadata_boost: metadataBoost,\n    hybrid_score: hybridScore\n  };\n});\n\n// Sort and take top 10\nrerankedChunks.sort((a, b) => b.hybrid_score - a.hybrid_score);\nconst topChunks = rerankedChunks.slice(0, 10);\n\nconsole.log(`✅ Top ${topChunks.length} chunks selected`);\nconsole.log('📊 Top scores:', topChunks.slice(0, 3).map(c => c.hybrid_score.toFixed(2)));\n\nconsole.log('=== RERANK COMPLETE ===');\n\nreturn [{\n  json: {\n    chunks: topChunks,\n    total_chunks: topChunks.length,\n    strategy: 'single_path',\n    rerank_method: 'hybrid',\n    current_query: currentQuery\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -184,
+        -964
+      ],
+      "id": "b2612fd6-d50a-4d95-b827-c7ceaf95d4ac",
+      "name": "Hybrid Reranker",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Extract subqueries for multi-path retrieval\n */\n\nconst analyzer = $input.first().json;\nconst subqueries = analyzer.subqueries || [];\n\nconsole.log('🔀 Splitting into', subqueries.length, 'paths');\n\nreturn subqueries.map(sq => ({\n  json: {\n    path_number: sq.path,\n    focus: sq.focus,\n    query: sq.query,\n    top_k: sq.top_k,\n    weight: sq.weight,\n    original_query: $('WAHA Trigger1').item.json.payload.body,\n    keywords: analyzer.keywords\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -904,
+        -92
+      ],
+      "id": "4015f749-8e08-4ec8-9cb2-546d42bd5abe",
+      "name": "Extract Subqueries",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -544,
+        -92
+      ],
+      "id": "33a5bbe9-8af8-44f1-85de-46a83ab6a6c8",
+      "name": "Loop Paths"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "gpt-3.5-turbo"
+        },
+        "builtInTools": {},
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -320,
+        -548
+      ],
+      "id": "225feebc-95b3-42f7-8b94-fdcec9f0a6e7",
+      "name": "LLM Multi Retriever",
+      "credentials": {
+        "openAiApi": {
+          "id": "UIf8te6pFLHvhBzM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.query }}",
+        "options": {
+          "systemMessage": "Role: Simple retrieval agent.\n\nTask: Call \"Supabase Vector Store\" tool with the query from input.\n\nSteps:\n1. Extract query from input\n2. Call tool ONCE\n3. Return results\n\nDO NOT:\n- Analyze results\n- Format output\n- Call tool multiple times\n- Add explanations\n\nJust call tool and return.",
+          "maxIterations": 20
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -288,
+        -772
+      ],
+      "id": "20dbe41f-a8b8-443c-a7a8-de01c712616a",
+      "name": "Multi Path Retriever"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -112,
+        -340
+      ],
+      "id": "069a9468-a792-419b-a1c1-97b08365f219",
+      "name": "Embeddings Multi",
+      "credentials": {
+        "openAiApi": {
+          "id": "UIf8te6pFLHvhBzM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search SAKERNAS knowledge base. Input: query. Returns: Relevant chunks.",
+        "tableName": {
+          "__rl": true,
+          "value": "rag_vectors",
+          "mode": "list"
+        },
+        "topK": "={{ $json.top_k }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        -192,
+        -548
+      ],
+      "id": "3753dd28-07fb-4e3a-b21e-d384f8bed46f",
+      "name": "Supabase Vector Store Multi",
+      "credentials": {
+        "supabaseApi": {
+          "id": "IRgdA1grhUB2EQRf",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * FIXED: Normalize Data Multi - Debug Version\n * Handles n8n Supabase Vector Store output format for multi-path retrieval\n */\n\nconst items = $input.all();\nconst pathInfo = $('Loop Paths').first().json;\n\nconsole.log('=== NORMALIZE DATA MULTI DEBUG ===');\nconsole.log('📥 Total items received:', items.length);\nconsole.log('🔀 Path info:', pathInfo);\n\nif (items.length === 0) {\n  console.log('⚠️ No items to normalize!');\n  return [];\n}\n\n// Debug: Log first item structure\nconsole.log('🔍 First item structure:', JSON.stringify(items[0].json, null, 2));\n\nconst normalized = items.map((item, idx) => {\n  const data = item.json;\n  \n  console.log(`\\n--- Processing item ${idx + 1} ---`);\n  console.log('Keys in data:', Object.keys(data));\n  \n  let content = \"\";\n  let metadata = {};\n  let similarity = 0.7;\n  \n  // Try different extraction methods (same as single path)\n  \n  // Method 1: Agent output\n  if (data.output && typeof data.output === 'string') {\n    console.log('📦 Found agent output');\n    try {\n      const parsed = JSON.parse(data.output);\n      content = parsed.content || parsed.pageContent || \"\";\n      metadata = parsed.metadata || {};\n      similarity = parsed.similarity || 0.7;\n    } catch (e) {\n      content = data.output;\n    }\n  }\n  // Method 2: Text field\n  else if (data.text) {\n    console.log('📦 Found text field');\n    content = data.text;\n    metadata = data.metadata || {};\n  }\n  // Method 3: Direct content/pageContent\n  else if (data.content || data.pageContent) {\n    console.log('📦 Found direct content/pageContent');\n    content = data.content || data.pageContent || \"\";\n    \n    if (typeof content === 'string' && content.startsWith('{')) {\n      try {\n        const parsed = JSON.parse(content);\n        content = parsed.pageContent || parsed.content || content;\n        metadata = parsed.metadata || data.metadata || {};\n      } catch (e) {\n        metadata = data.metadata || {};\n      }\n    } else {\n      metadata = data.metadata || {};\n    }\n  }\n  // Method 4: Entire data object\n  else {\n    console.log('📦 Using entire data object');\n    content = JSON.stringify(data);\n    metadata = {};\n  }\n  \n  similarity = data.similarity || data.score || similarity;\n  \n  console.log('✅ Extracted:', {\n    contentLength: content.length,\n    contentPreview: content.substring(0, 100),\n    metadataKeys: Object.keys(metadata),\n    similarity: similarity\n  });\n  \n  if (!content || content.length === 0) {\n    console.log('⚠️ WARNING: Empty content for item', idx + 1);\n    console.log('Raw data:', JSON.stringify(data, null, 2));\n  }\n  \n  return {\n    json: {\n      content: content,\n      metadata: metadata,\n      similarity: similarity,\n      path_number: pathInfo.path_number,\n      focus: pathInfo.focus,\n      weight: pathInfo.weight\n    }\n  };\n});\n\nconsole.log('=== NORMALIZATION COMPLETE ===');\nconsole.log('📤 Total normalized items:', normalized.length);\nconsole.log('📊 Items with content:', normalized.filter(n => n.json.content.length > 0).length);\n\nreturn normalized;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -136
+      ],
+      "id": "6721674d-16e2-40d9-898f-b0c5a53046ce",
+      "name": "Normalize Data Multi",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Multi-Path Merger & Cross-Path Reranker\n * FIXED: Handle normalized data format + Pass current query\n */\n\nconst allResults = $input.all();\nconst uniqueChunks = new Map();\nconst analyzer = $('Intent Classifier').first().json;\nconst keywords = analyzer.keywords || [];\n\n// GET CURRENT QUERY - Try multiple sources\nlet currentQuery = \"Pertanyaan tidak tersedia\";\ntry {\n  // Method 1: From analyzer output\n  if (analyzer.original_query) {\n    currentQuery = analyzer.original_query;\n  }\n  // Method 2: From WAHA Trigger (if accessible)\n  else if ($('WAHA Trigger').item && $('WAHA Trigger').item.json.payload) {\n    currentQuery = $('WAHA Trigger').item.json.payload.body;\n  }\n  // Method 3: From optimized_query as fallback\n  else if (analyzer.optimized_query) {\n    currentQuery = analyzer.optimized_query;\n  }\n} catch (e) {\n  console.log('⚠️ Could not get current query:', e.message);\n}\n\nconsole.log('🔀 Merging results from', allResults.length, 'items');\nconsole.log('❓ Current query:', currentQuery);\n\nif (allResults.length === 0) {\n  console.log('⚠️ No results to merge!');\n  return [{\n    json: {\n      chunks: [],\n      total_chunks: 0,\n      strategy: 'multi_path',\n      error: 'No results from multi-path retrieval',\n      current_query: currentQuery\n    }\n  }];\n}\n\n// Merge chunks from all paths\nfor (const item of allResults) {\n  const data = item.json;\n  const pathNumber = data.path_number;\n  const weight = data.weight;\n  const focus = data.focus;\n  const content = data.content || \"\";\n  const metadata = data.metadata || {};\n  const similarity = data.similarity || 0.7;\n  \n  const key = content.trim().toLowerCase();\n  \n  // Skip very short chunks\n  if (key.length < 50) continue;\n  \n  if (!uniqueChunks.has(key)) {\n    uniqueChunks.set(key, {\n      content: content,\n      metadata: metadata,\n      paths: [{ path: pathNumber, focus: focus, weight: weight }],\n      max_similarity: similarity,\n      weighted_scores: [similarity * weight]\n    });\n  } else {\n    const existing = uniqueChunks.get(key);\n    existing.paths.push({ path: pathNumber, focus: focus, weight: weight });\n    existing.max_similarity = Math.max(existing.max_similarity, similarity);\n    existing.weighted_scores.push(similarity * weight);\n  }\n}\n\nconsole.log('📦 Unique chunks after deduplication:', uniqueChunks.size);\n\n// Calculate final scores for each chunk\nconst mergedChunks = Array.from(uniqueChunks.values()).map(chunk => {\n  const content = chunk.content || \"\";\n  const contentLower = content.toLowerCase();\n  const metadata = chunk.metadata || {};\n  \n  // Cross-path boost: chunks found in multiple paths are more relevant\n  const pathCount = chunk.paths.length;\n  const crossPathBoost = (pathCount - 1) * 0.15;\n  \n  // Average weighted similarity across all paths\n  const avgWeightedSimilarity = chunk.weighted_scores.reduce((a, b) => a + b, 0) / chunk.weighted_scores.length;\n  \n  // Keyword matching score\n  const keywordMatches = keywords.filter(kw => contentLower.includes(kw.toLowerCase()));\n  const keywordScore = keywords.length > 0 ? keywordMatches.length / keywords.length : 0;\n  \n  // Diversity score: bonus for appearing in different query types\n  const hasPrecise = chunk.paths.some(p => p.focus === 'precise');\n  const hasExpanded = chunk.paths.some(p => p.focus === 'expanded');\n  const hasContextual = chunk.paths.some(p => p.focus === 'contextual');\n  const diversityScore = [hasPrecise, hasExpanded, hasContextual].filter(Boolean).length * 0.05;\n  \n  // Final score calculation\n  const finalScore = (\n    avgWeightedSimilarity * 0.50 +  // 50% weighted semantic similarity\n    crossPathBoost +                 // Bonus for multi-path appearance\n    (keywordScore * 0.20) +          // 20% keyword matching\n    diversityScore                   // Bonus for query diversity\n  );\n  \n  return {\n    content: content,\n    metadata: metadata,\n    similarity: chunk.max_similarity,\n    path_count: pathCount,\n    cross_path_boost: crossPathBoost,\n    keyword_score: keywordScore,\n    keyword_matches: keywordMatches,\n    diversity_score: diversityScore,\n    final_score: finalScore\n  };\n});\n\n// Sort by final score and take top 10\nmergedChunks.sort((a, b) => b.final_score - a.final_score);\nconst topChunks = mergedChunks.slice(0, 10);\n\nconsole.log('✅ Top 10 chunks selected');\nconsole.log('🎯 Multi-path chunks:', topChunks.filter(c => c.path_count > 1).length);\nconsole.log('📊 Top chunk scores:', topChunks.slice(0, 3).map(c => c.final_score));\n\n// Log score breakdown for top chunk\nif (topChunks.length > 0) {\n  const top = topChunks[0];\n  console.log('🏆 Top chunk breakdown:', {\n    similarity: top.similarity,\n    cross_path_boost: top.cross_path_boost,\n    keyword_score: top.keyword_score,\n    diversity_score: top.diversity_score,\n    final_score: top.final_score\n  });\n}\n\nreturn [{\n  json: {\n    chunks: topChunks,\n    total_chunks: topChunks.length,\n    strategy: 'multi_path',\n    multi_path_count: topChunks.filter(c => c.path_count > 1).length,\n    rerank_method: 'cross_path_weighted',\n    current_query: currentQuery  // PASS QUERY TO NEXT NODE\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -184,
+        -164
+      ],
+      "id": "1651501a-42e5-465c-927f-f451b491d100",
+      "name": "Cross-Path Reranker",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 3: FORMAT CONTEXT\n// Copy code di bawah ini ke node \"Format Context\"\n// ============================================\n\nconst result = $input.first().json;\nconst chunks = result.chunks || [];\nlet currentQuery = result.current_query || \"Pertanyaan tidak tersedia\";\n\n// Fallback: Get from Intent Classifier if not in result\nif (currentQuery === \"Pertanyaan tidak tersedia\") {\n  try {\n    const analyzerRaw = $('Intent Classifier').first().json;\n    if (analyzerRaw.output && typeof analyzerRaw.output === 'string') {\n      const analyzer = JSON.parse(analyzerRaw.output);\n      currentQuery = analyzer.original_query || analyzer.optimized_query || currentQuery;\n      console.log('✅ Got query from Intent Classifier');\n    }\n  } catch (e) {\n    console.log('⚠️ Could not get query from Intent Classifier');\n  }\n}\n\nconsole.log('=== NODE 3: FORMAT CONTEXT ===');\nconsole.log('📊 Chunks to format:', chunks.length);\nconsole.log('❓ Current query:', currentQuery);\n\nif (chunks.length === 0) {\n  console.log('⚠️ No chunks to format!');\n  const emptyContext = `PERTANYAAN: \"${currentQuery}\"\n\nTidak ada dokumen relevan ditemukan dalam knowledge base.`;\n  \n  return [{\n    json: {\n      context: emptyContext\n    }\n  }];\n}\n\n// Format each chunk\nconst formattedChunks = chunks.map((chunk, idx) => {\n  const metadata = chunk.metadata || {};\n  const docTitle = metadata.doc_title || 'Unknown';\n  const pageStart = metadata.page_start;\n  const score = (chunk.hybrid_score || chunk.similarity || 0) * 100;\n  \n  const header = `[${idx + 1}] ${docTitle}${pageStart ? ` (Hal.${pageStart})` : ''} - ${score.toFixed(0)}%`;\n  \n  return `${header}\n${chunk.content}\n${'─'.repeat(80)}`;\n}).join('\\n\\n');\n\n// Build final context\nconst context = `PERTANYAAN: \"${currentQuery}\"\n\n${'═'.repeat(80)}\nDOKUMEN RELEVAN:\n${'═'.repeat(80)}\n\n${formattedChunks}`;\n\nconsole.log('✅ Context formatted');\nconsole.log('📏 Length:', context.length, 'chars');\nconsole.log('=== FORMAT COMPLETE ===');\n\nreturn [{\n  json: {\n    context: context\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -684
+      ],
+      "id": "9ef16f03-f0c2-42e0-897b-4405210bb9be",
+      "name": "Format Context",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-nano",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-nano"
+        },
+        "builtInTools": {},
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        408,
+        -460
+      ],
+      "id": "03f724a6-964a-4e61-9f49-6bca9aef5b13",
+      "name": "LLM Synthesizer",
+      "credentials": {
+        "openAiApi": {
+          "id": "UIf8te6pFLHvhBzM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.context }}",
+        "options": {
+          "systemMessage": "Kamu adalah asisten BPS untuk SAKERNAS Februari 2026.\n\nJawab pertanyaan user berdasarkan dokumen yang diberikan.\n\nAturan:\n1. Gunakan HANYA informasi dari dokumen\n2. Jika tidak ada informasi, katakan \"Informasi tidak tersedia\"\n3. Jawab dengan bahasa Indonesia yang jelas dan informatif \n\nFormat jawaban:\n- Langsung ke inti\n- Maksimal 5-6 kalimat\n- Profesional tapi ramah\n- Informatif"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        -684
+      ],
+      "id": "402aa5b9-b88c-4bea-b8e8-0b021d6f165f",
+      "name": "Synthesizer"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "default",
+        "chatId": "={{ $('WAHA Trigger1').first().json.payload.from }}",
+        "text": "={{ $json.output }}",
+        "linkPreview": false,
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        752,
+        -684
+      ],
+      "id": "f5993a81-6f90-449c-b4af-cd46bd29f731",
+      "name": "Send Message",
+      "credentials": {
+        "wahaApi": {
+          "id": "rM8DXikeSA9YYmci",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@devlikeapro/n8n-nodes-waha.wahaTrigger",
+      "typeVersion": 202502,
+      "position": [
+        -2736,
+        -1600
+      ],
+      "id": "557b158b-7720-4029-8fee-8e3b770ec7fc",
+      "name": "WAHA Trigger1",
+      "webhookId": "sakernas-rag-webhook"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Start Typing",
+        "session": "default",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -2288,
+        -1312
+      ],
+      "id": "821b3b4d-a688-47da-bfa2-af2bfae64283",
+      "name": "Start Typing1",
+      "credentials": {
+        "wahaApi": {
+          "id": "rM8DXikeSA9YYmci",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Start Typing",
+        "session": "default",
+        "chatId": "={{ $('WAHA Trigger1').item.json.payload.from }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -1488,
+        -1068
+      ],
+      "id": "588997c4-c6a7-4754-8b87-788148a0bae1",
+      "name": "Start Typing2",
+      "credentials": {
+        "wahaApi": {
+          "id": "rM8DXikeSA9YYmci",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Start Typing",
+        "session": "default",
+        "chatId": "={{ $('WAHA Trigger1').item.json.payload.from }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -544,
+        -1156
+      ],
+      "id": "79a87536-b1eb-460f-9013-509c94221047",
+      "name": "Start Typing3",
+      "credentials": {
+        "wahaApi": {
+          "id": "rM8DXikeSA9YYmci",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Parse Intent Classifier Output\n * Place this node BETWEEN Intent Classifier and Route Splitter\n */\n\nconst item = $input.first().json\n\nconsole.log('=== PARSE INTENT CLASSIFIER OUTPUT ===');\nconsole.log('📥 Raw input keys:', Object.keys(item));\n\nlet parsed = {};\n\n// Check if output is stringified JSON\nif (item.output && typeof item.output === 'string') {\n  console.log('📦 Output is stringified JSON');\n  try {\n    parsed = JSON.parse(item.output);\n    console.log('✅ Successfully parsed output');\n    console.log('🎯 Strategy:', parsed.strategy);\n    console.log('🏷️ Intent:', parsed.intent);\n    console.log('📊 Complexity:', parsed.complexity);\n  } catch (e) {\n    console.log('❌ Failed to parse output:', e.message);\n    // Fallback: assume simple query\n    parsed = {\n      intent: 'general',\n      complexity: 'simple',\n      strategy: 'single_path',\n      optimized_query: item.output || '',\n      keywords: [],\n      original_query: ''\n    };\n  }\n}\n// Check if output is already parsed\nelse if (item.output && typeof item.output === 'object') {\n  console.log('📦 Output is already parsed object');\n  parsed = item.output;\n}\n// Fallback: use entire item\nelse {\n  console.log('📦 Using entire item as parsed data');\n  parsed = item;\n}\n\nconsole.log('=== PARSE COMPLETE ===');\nconsole.log('📤 Output strategy:', parsed.strategy);\n\n// Return parsed data at root level for Route Splitter to access\nreturn [{\n  json: {\n    ...parsed,  // Spread all fields to root level\n    _raw_output: item.output  // Keep original for debugging\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1488,
+        -876
+      ],
+      "id": "5909b64b-f8ef-4f6a-894b-dd5fc866f942",
+      "name": "Parse Intent Classifier Output"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Start Typing",
+        "session": "={{ $('WAHA Trigger1').first().json.session }}",
+        "chatId": "={{ $('WAHA Trigger1').first().json.payload.from }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        176,
+        -388
+      ],
+      "id": "50a9b66c-d7bd-42f9-8af2-47540bc9fb61",
+      "name": "Start Typing4",
+      "credentials": {
+        "wahaApi": {
+          "id": "rM8DXikeSA9YYmci",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c5b6d30f-fdcd-44a8-9590-01c115cd14ab",
+              "leftValue": "={{ $json.is_greeting }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2064,
+        -1120
+      ],
+      "id": "46f1d675-d947-4efc-a51c-24c17b33e628",
+      "name": "Is Greeting?"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Greeting Filter - ENRICHED INDONESIAN VERSION\n * Detect simple greetings/test messages\n * Place this node AFTER Filter Groups, BEFORE Intent Classifier\n */\nconst message = $input.first().json.payload.body;\nconsole.log('=== GREETING FILTER (ENRICHED) ===');\nconsole.log('📥 Message:', message);\n\n// Normalize message\nconst normalized = message.trim().toLowerCase();\nconsole.log('🔍 Normalized:', normalized);\n\n// Define greeting patterns - ENRICHED with Indonesian chat culture\nconst greetingPatterns = [\n  // Simple greetings (exact match)\n  /^(halo|hai|hello|hi|hey|hei|hei|hoy|woy)$/i,\n  /^(halo|hai|hello|hi|hey|hei|hoy|woy)\\s*[!.?]+$/i,\n  \n  // Indonesian slang greetings - EXACT MATCH to avoid false positives\n  /^p$/i,                    // Single \"p\" \n  /^(puh|pw|yoi|yow)$/i,     // Variations\n  /^(gas|gass|gaskan)$/i,    // \"Gas\" greetings\n  /^(bang|kak|bro|sis|om|tante)$/i,  // Casual calls\n  \n  // Repeated characters (common in Indonesia) - CONSERVATIVE: 3+ chars\n  /^p{3,10}$/i,              // \"pppp\" or \"ppppp\" (3-10 times)\n  /^h{3,10}$/i,              // \"hhhh\"\n  /^(halo){2,3}$/i,          // \"halohalo\" or \"halohalohal\"\n  \n  // Social media style\n  /^(asup|hadir|absen|cekk?)$/i,\n  /^(min|admin|mod)$/i,      // Calling admin/moderator\n  \n  // Ping variations\n  /^ping$/i,\n  /^(pong|tes\\s*ping)$/i,\n  \n  // Test messages (exact match)\n  /^(test|tes|cek|check|testing|nyoba|coba)$/i,\n  /^(test|tes|cek|check|testing|nyoba)\\s*[!.?]+$/i,\n  \n  // Common short responses (exact match only)\n  /^(ok|oke|okay|okee|oks|siap)$/i,\n  /^(ya|yes|yup|yoi|yap|iya|iye)$/i,\n  /^(sip|mantap|mantul|josss?)$/i,\n  \n  // Gen Z expressions\n  /^(gaes|guys|guyss|gengs|gengss|cuy|coy)$/i,\n  /^(ngab|wkwk|kwkw|haha|hehe)$/i,\n  \n  // Thanks expressions\n  /^(terima\\s*kasih|thanks|thank\\s*you|makasih|thx|ty|tq)$/i,\n  /^(tengkyu|tenkyu|suwun|nuhun|matur\\s*nuwun)$/i,\n  \n  // Greetings with time\n  /^(selamat\\s*pagi|pagi|selamat\\s*siang|siang|selamat\\s*sore|sore|selamat\\s*malam|malam)$/i,\n  /^(good\\s*morning|morning|good\\s*afternoon|good\\s*evening|good\\s*night|night)$/i,\n  \n  // Religious greetings\n  /^(assalamualaikum|walaikumsalam|salam|peace)$/i,\n  \n  // Casual check-ins\n  /^(apa\\s*kabar|what'?s\\s*up|wassup|wazzup)$/i,\n  /^(gimana|gmn|aman|pd\\s*kemana)$/i,\n\n  /^(mas alwan|alwan|wan|pd\\s*ubian)$/i,\n  \n  // Single emoji or sticker indicators\n  /^(stiker|sticker|gif)$/i,\n  \n  // Emoji only (2+ emojis to avoid false positives)\n  /^[\\u{1F600}-\\u{1F64F}\\u{1F300}-\\u{1F5FF}\\u{1F680}-\\u{1F6FF}\\u{1F1E0}-\\u{1F1FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}\\u{1F900}-\\u{1F9FF}]{2,}$/u,\n  \n  // Punctuation only (multiple)\n  /^[!?.,;:]{2,}$/,\n  \n  // Repeated punctuation with single letter\n  /^[a-z][!?.,;:]{2,}$/i,    // \"p!!!\", \"h???\"\n];\n\n// Check if message matches any greeting pattern\nlet isGreeting = false;\nlet matchedPattern = null;\n\nfor (const pattern of greetingPatterns) {\n  if (pattern.test(normalized)) {\n    isGreeting = true;\n    matchedPattern = pattern.toString();\n    console.log('✅ Matched pattern:', pattern);\n    break;\n  }\n}\n\n// Additional check: Repeated single character (3+ times)\n// For cases like \"aaaa\", \"pppp\", \"hhhh\" that might not match above\nif (!isGreeting && normalized.length >= 3 && normalized.length <= 10) {\n  const firstChar = normalized[0];\n  const allSame = normalized.split('').every(char => char === firstChar);\n  \n  if (allSame && /[a-z]/i.test(firstChar)) {\n    isGreeting = true;\n    matchedPattern = 'repeated_char_pattern';\n    console.log('✅ Matched: Repeated character pattern');\n  }\n}\n\nconsole.log('🎯 Is Greeting:', isGreeting);\nconsole.log('=== FILTER COMPLETE ===');\n\n// Prepare output object\nconst outputJson = {\n  ...($input.first().json),\n  original_message: message,\n  matched_pattern: matchedPattern\n};\n\n// ONLY add is_greeting if it is true\nif (isGreeting) {\n  outputJson.is_greeting = true;\n}\n\nreturn [{\n  json: outputJson\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2288,
+        -1120
+      ],
+      "id": "8eda8484-f7ab-4639-84de-b26dc93d125b",
+      "name": "Greeting Filter"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "default",
+        "chatId": "={{ $('WAHA Trigger1').first().json.payload.from }}",
+        "text": "=Halo! 👋\n\nSaya adalah asisten virtual BPS untuk SAKERNAS Februari 2026.\n\nSaya dapat membantu Anda dengan informasi tentang:\n• Konsep dan definisi ketenagakerjaan\n• Kode KBLI dan KBJI\n• Prosedur dan pedoman SAKERNAS\n• Klasifikasi status pekerjaan\n• Dan pertanyaan lainnya seputar SAKERNAS\n\nSilakan ajukan pertanyaan Anda, contoh:\n- \"Apa itu SAKERNAS?\"\n- \"Definisi pengangguran menurut ICLS 19\"\n- \"Bagaimana cara menentukan status kependudukan?\"\n\nSaya siap membantu! 😊\n",
+        "linkPreview": false,
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -1776,
+        -1268
+      ],
+      "id": "1f192527-6def-4815-8441-c1caa0496ba6",
+      "name": "Send Message1",
+      "credentials": {
+        "wahaApi": {
+          "id": "rM8DXikeSA9YYmci",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=default"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        536,
+        -460
+      ],
+      "id": "8723ac13-1c1c-4bba-8f9c-7030054c9d1b",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Start Typing",
+        "session": "default",
+        "chatId": "={{ $('WAHA Trigger1').item.json.payload.from }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -904,
+        -1460
+      ],
+      "id": "5bcc2c5c-dc73-42ec-b7b9-2e7bed6456e8",
+      "name": "Start Typing5",
+      "credentials": {
+        "wahaApi": {
+          "id": "rM8DXikeSA9YYmci",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Start Typing",
+        "session": "default",
+        "chatId": "={{ $('WAHA Trigger1').item.json.payload.from }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -904,
+        -460
+      ],
+      "id": "b08c38cb-9b75-4022-b692-88ab1e52878f",
+      "name": "Start Typing6",
+      "credentials": {
+        "wahaApi": {
+          "id": "rM8DXikeSA9YYmci",
+          "name": "WAHA account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Filter Groups": {
+      "main": [
+        [
+          {
+            "node": "Start Typing1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Greeting Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Classifier": {
+      "main": [
+        [
+          {
+            "node": "Start Typing2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Parse Intent Classifier Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Splitter": {
+      "main": [
+        [
+          {
+            "node": "Single Path Retriever",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Start Typing5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Subqueries",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Start Typing6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Single Path Retriever": {
+      "main": [
+        [
+          {
+            "node": "Normalize Data Single",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Start Typing3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Data Single": {
+      "main": [
+        [
+          {
+            "node": "Hybrid Reranker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hybrid Reranker": {
+      "main": [
+        [
+          {
+            "node": "Format Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Subqueries": {
+      "main": [
+        [
+          {
+            "node": "Loop Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Paths": {
+      "main": [
+        [
+          {
+            "node": "Cross-Path Reranker",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Multi Path Retriever",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Multi Path Retriever": {
+      "main": [
+        [
+          {
+            "node": "Normalize Data Multi",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Start Typing4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Data Multi": {
+      "main": [
+        [
+          {
+            "node": "Loop Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cross-Path Reranker": {
+      "main": [
+        [
+          {
+            "node": "Format Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Context": {
+      "main": [
+        [
+          {
+            "node": "Synthesizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Synthesizer": {
+      "main": [
+        [
+          {
+            "node": "Send Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Intent Classifier": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Intent Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Single Retriever": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Single Path Retriever",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Single": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store Single",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store Single": {
+      "ai_tool": [
+        [
+          {
+            "node": "Single Path Retriever",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Multi Retriever": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Multi Path Retriever",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Multi": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store Multi",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store Multi": {
+      "ai_tool": [
+        [
+          {
+            "node": "Multi Path Retriever",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Synthesizer": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Synthesizer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WAHA Trigger1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Filter Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Intent Classifier Output": {
+      "main": [
+        [
+          {
+            "node": "Route Splitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Greeting?": {
+      "main": [
+        [
+          {
+            "node": "Send Message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Intent Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Greeting Filter": {
+      "main": [
+        [
+          {
+            "node": "Is Greeting?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "Synthesizer",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "68e4d9a4-7ed1-4cca-b74c-237545e65fde",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "41836fe86336794fad6e8a950edd73474e00053db37631e169e689f51798794f"
+  },
+  "id": "LXRglaAVnUW0eXFd",
+  "tags": []
+}
